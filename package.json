@@ -1,6 +1,6 @@
 {
   "name": "lanhu2md",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "把蓝湖（lanhuapp）Axure 原型链接转换成带截图的需求 Markdown",
   "type": "module",
   "bin": {
