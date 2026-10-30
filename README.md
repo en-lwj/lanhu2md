@@ -59,12 +59,14 @@ PowerShell 里链接必须用单引号（含 `&`、`#`）。
 | `--dpr <数字>` | 截图倍率 | `1` |
 | `--max-side <像素>` | 单张位图最长边上限，超出自动降采样，最小 1000 | `8000` |
 | `--edge <路径>` | 指定截图用的浏览器可执行文件 | 自动找本机 Edge / Chrome |
-| `--cookie "<k=v; …>"` | 直接提供蓝湖 Cookie，优先级最高 | 依次找 `--cookie` → `--storage` → `LANHU_COOKIE` / `LANHU_STORAGE` → `~/.lanhu2md/session.json` → 项目 `.cookie` / `.storage.json` |
+| `--cookie "<k=v; …>"` | 登录态 Cookie；分享链接优先用匿名分享会话，接口 418 后才回退到它 | 依次找 `--cookie` → `--storage` → `LANHU_COOKIE` / `LANHU_STORAGE` → `~/.lanhu2md/session.json` → 项目 `.cookie` / `.storage.json` |
 | `--storage <文件>` | Playwright `storageState.json`（自动取 `lanhuapp.com` 的 Cookie） | 同上，优先级仅次于 `--cookie` |
 | `--share-password <pwd>` | 分享链接密码 | 读 `LANHU_SHARE_PASSWORD`，没有则交互询问 |
 | `--no-cache` | 忽略 `.cache` 重新下载 | 用缓存 |
 | `--concurrency <n>` | 并发下载数，最小 1 | `4` |
 | `-h`, `--help` | 显示帮助 | |
+
+分享链接（`/link/#/invite?sid=...`）会自带「仅查看」匿名会话（`lhquickshare_session`），默认**优先匿名读取**分享范围内的内容，不需要登录。只有匿名会话失效或范围不足（接口 418）时，才回退到 `--cookie` / 已缓存登录态；仍失败再提示 `lanhu2md login`。
 
 ### 子命令
 

@@ -20,6 +20,20 @@ const CODE = {
   INVALID_SID: 30018,
 };
 
+const SHARE_COOKIE = 'lhquickshare_session';
+
+/**
+ * 从 Set-Cookie 里挑出蓝湖的分享匿名会话。
+ * Node 20+ 用 getSetCookie()；旧版 Node 18 退回合并后的 set-cookie 字符串。
+ */
+function readShareCookies(res) {
+  const headers = res.headers;
+  const lines = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
+  const raw = Array.isArray(lines) && lines.length ? lines.join(', ') : headers.get('set-cookie') || '';
+  const match = String(raw).match(/(?:^|,\s*)lhquickshare_session=([^;,\s]+)/i);
+  return match ? `${SHARE_COOKIE}=${match[1]}` : '';
+}
+
 /**
  * 分享链接（/link/#/invite?sid=xxx）→ 工作台链接。
  * 匿名即可调用；带密码的分享需要 password。
@@ -40,6 +54,10 @@ export async function resolveShare({ sid, sign = '', password = '', cookie = '' 
     },
     body: JSON.stringify(body),
   });
+
+  // 分享接口会给一个「仅查看」的匿名会话 Cookie（lhquickshare_session），
+  // 带上它就能读分享范围内的原型内容，不需要登录账号。
+  const shareCookies = readShareCookies(res);
 
   if (!res.ok) {
     return { ok: false, code: res.status, message: `分享接口请求失败 HTTP ${res.status}`, raw: null };
@@ -63,6 +81,7 @@ export async function resolveShare({ sid, sign = '', password = '', cookie = '' 
       ok: true,
       code,
       url: data.url,
+      cookies: shareCookies,
       needsJoin: code === CODE.JOIN_REQUIRED,
       message: '',
       raw: json,

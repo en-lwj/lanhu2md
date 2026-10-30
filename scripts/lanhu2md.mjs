@@ -49,7 +49,7 @@ lanhu2md —— 蓝湖 Axure 原型链接转需求 Markdown
   --max-side <像素>     单张位图最长边上限（默认 8000，超过自动降采样）
   --edge <路径>         指定浏览器可执行文件
 
-登录态（仅取版本信息时需要）：
+登录态（分享链接通常不需要）：
   --cookie "<k=v; ...>" 直接给 Cookie
   --storage <文件>      Playwright storageState.json
   --share-password <pwd> 分享链接的密码（也可用 LANHU_SHARE_PASSWORD）
@@ -224,6 +224,7 @@ async function main() {
 
   let params = parseLanhuUrl(opts.url);
   let cookie = await resolveCookie(opts);
+  let shareCookie = '';
   let fromShare = false;
 
   if (params.kind === 'share') {
@@ -283,6 +284,9 @@ async function main() {
       );
     }
     opts.url = resolved.url; // md 头部的来源记录实际项目链接
+    // 分享自带「仅查看」匿名会话：优先用它读内容，418 再退回登录态
+    shareCookie = resolved.cookies || '';
+    if (shareCookie) console.log('已取得分享匿名会话（优先匿名读取，无需登录）');
     try {
       params = parseLanhuUrl(resolved.url);
     } catch (error) {
@@ -295,38 +299,53 @@ async function main() {
     }
   }
 
-  if (!cookie) {
+  if (!cookie && !shareCookie) {
     console.warn(
       '提示：未提供登录态 Cookie。\n' +
-        (fromShare ? '      分享链接只负责“找到项目”，读取原型内容仍需要一个有该项目权限的账号。\n' : '') +
+        (fromShare
+          ? '      分享没带匿名会话（可能已过期），读取原型内容需要一个有该项目权限的账号。\n'
+          : '') +
         '      可用 `lanhu2md login` 登录一次并缓存，或用 --cookie / --storage 指定。'
     );
   }
 
   console.log(`解析链接：${params.pid} / ${params.docId}`);
 
+  // 读取顺序：分享匿名会话 → 登录态 → 交互登录
   let docInfo;
   try {
-    docInfo = await getDocInfo(params, cookie);
+    docInfo = await getDocInfo(params, shareCookie || cookie);
   } catch (error) {
-    // 任何链接遇到 418 都按需登录：交互终端问一句，非交互只给指引
-    const canOfferLogin = error instanceof AuthError && process.stdin.isTTY;
-    if (!canOfferLogin) throw error;
+    let lastError = error;
 
-    const question = cookie
-      ? '当前账号没有该项目权限，是否换一个账号登录？(y/N) '
-      : '该链接需要登录后才能读取，是否现在打开浏览器登录？(y/N) ';
-    const yes = await askYesNo(question);
-    if (!yes) {
-      console.error('\n[退出] 已跳过登录。可稍后运行 `lanhu2md login`，或改用 --cookie / --storage。');
-      process.exitCode = 1;
-      return;
+    if (lastError instanceof AuthError && shareCookie && cookie) {
+      console.log('分享匿名会话无权读取，改用登录态重试...');
+      try {
+        docInfo = await getDocInfo(params, cookie);
+      } catch (retryError) {
+        lastError = retryError;
+      }
     }
 
-    await login({});
-    cookie = await resolveCookie({});
-    if (!cookie) throw new Error('登录后仍未拿到登录态，请重试或改用 --cookie');
-    docInfo = await getDocInfo(params, cookie);
+    if (!docInfo) {
+      const canOfferLogin = lastError instanceof AuthError && process.stdin.isTTY;
+      if (!canOfferLogin) throw lastError;
+
+      const question = cookie
+        ? '当前账号没有该项目权限，是否换一个账号登录？(y/N) '
+        : '该链接需要登录后才能读取，是否现在打开浏览器登录？(y/N) ';
+      const yes = await askYesNo(question);
+      if (!yes) {
+        console.error('\n[退出] 已跳过登录。可稍后运行 `lanhu2md login`，或改用 --cookie / --storage。');
+        process.exitCode = 1;
+        return;
+      }
+
+      await login({});
+      cookie = await resolveCookie({});
+      if (!cookie) throw new Error('登录后仍未拿到登录态，请重试或改用 --cookie');
+      docInfo = await getDocInfo(params, cookie);
+    }
   }
   const version = pickVersion(docInfo, params.versionId);
   const label = versionLabel(version);
