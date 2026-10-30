@@ -1,0 +1,30 @@
+{
+  "name": "lanhu2md",
+  "version": "0.1.0",
+  "description": "把蓝湖（lanhuapp）Axure 原型链接转换成带截图的需求 Markdown",
+  "type": "module",
+  "bin": {
+    "lanhu2md": "scripts/lanhu2md.mjs"
+  },
+  "files": [
+    "scripts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "lanhu",
+    "lanhuapp",
+    "axure",
+    "markdown",
+    "requirements",
+    "opencode-skill"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "start": "node scripts/lanhu2md.mjs"
+  },
+  "optionalDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}

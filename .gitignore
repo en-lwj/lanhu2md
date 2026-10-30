@@ -1,0 +1,7 @@
+node_modules/
+.cache/
+out/
+.cookie
+.storage.json
+*.log
+*.tgz
